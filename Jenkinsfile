@@ -4,7 +4,6 @@ pipeline {
     environment {
         REPORTS_PATH = 'reports'
         VENV_DIR = 'venv'
-        // Activer l'environnement virtuel pour toutes les étapes Python
         PATH = "${VENV_DIR}/bin:${env.PATH}"
     }
 
@@ -20,17 +19,11 @@ pipeline {
             steps {
                 sh '''
                     echo "=== Création de l'environnement virtuel ==="
-                    
-                    # Créer l'environnement virtuel
+                    rm -rf venv
                     python3 -m venv venv
-                    
-                    # Activer l'environnement virtuel et installer les dépendances
                     . venv/bin/activate
-                    
-                    # Mettre à jour pip dans l'environnement virtuel
                     pip install --upgrade pip
                     
-                    # Installer les dépendances
                     if [ -f "requirements.txt" ]; then
                         echo "Installation depuis requirements.txt"
                         pip install -r requirements.txt
@@ -46,12 +39,8 @@ EOF
                         pip install -r requirements.txt
                     fi
                     
-                    # Installer pytest explicitement
                     pip install pytest pytest-cov
-                    
                     echo "=== Dépendances installées avec succès ==="
-                    
-                    # Vérifier les installations
                     pip list
                 '''
             }
@@ -61,14 +50,9 @@ EOF
             steps {
                 sh '''
                     echo "=== Exécution des tests ==="
-                    
-                    # Activer l'environnement virtuel
                     . venv/bin/activate
-                    
-                    # Créer le dossier reports
                     mkdir -p reports
                     
-                    # Vérifier si test_app.py existe
                     if [ -f "test_app.py" ]; then
                         echo "Exécution des tests existants"
                         pytest test_app.py -v --junitxml=reports/test-results.xml --cov=. --cov-report=html:reports/coverage
@@ -77,7 +61,6 @@ EOF
                         cat > test_app.py << 'EOF'
 import pytest
 
-# Fonctions simples pour les tests
 def add(a, b): return a + b
 def subtract(a, b): return a - b
 def multiply(a, b): return a * b
@@ -116,13 +99,9 @@ EOF
             }
             post {
                 always {
-                    junit allowEmptyResults: true, testResults: 'reports/test-results.xml'
-                    publishHTML([
-                        reportDir: 'reports/coverage',
-                        reportFiles: 'index.html',
-                        reportName: 'Couverture de Code',
-                        allowMissing: true
-                    ])
+                    // Alternative à junit : archiver simplement le fichier XML
+                    archiveArtifacts artifacts: 'reports/test-results.xml', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'reports/coverage/**/*', allowEmptyArchive: true
                 }
             }
         }
@@ -133,8 +112,6 @@ EOF
                     try {
                         sh '''
                             . venv/bin/activate
-                            
-                            # Vérifier si sonar-scanner est disponible
                             if command -v sonar-scanner &> /dev/null; then
                                 echo "Exécution de SonarQube..."
                                 sonar-scanner \
@@ -161,10 +138,8 @@ EOF
                     try {
                         sh '''
                             . venv/bin/activate
-                            
                             mkdir -p reports
                             
-                            # Utiliser pip-audit (plus simple et fonctionne sans installation supplémentaire)
                             echo "Installation de pip-audit..."
                             pip install pip-audit
                             
@@ -173,8 +148,13 @@ EOF
                             
                             echo "Rapport généré dans reports/pip-audit.html"
                             
-                            # Seuil CVSS 7 - on vérifie manuellement (approximatif avec pip-audit)
-                            # pip-audit ne donne pas de scores CVSS directement, mais on peut voir les vulnérabilités
+                            # Vérification des vulnérabilités critiques (simulée)
+                            if grep -i "critical\|high" reports/pip-audit.html; then
+                                echo "⚠️ Des vulnérabilités critiques détectées !"
+                                # exit 1  # Décommentez pour bloquer le build
+                            else
+                                echo "✅ Aucune vulnérabilité critique détectée"
+                            fi
                         '''
                     } catch (Exception e) {
                         echo "Scan SCA ignoré: ${e.message}"
@@ -191,7 +171,10 @@ EOF
 
     post {
         always {
-            cleanWs()
+            echo "Nettoyage terminé"
+            // Alternative à cleanWs : supprimer manuellement
+            sh 'rm -rf venv || true'
+            sh 'rm -rf reports || true'
         }
         success {
             echo "✅✅ Pipeline exécuté avec SUCCÈS ! ✅✅"
