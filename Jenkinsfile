@@ -84,9 +84,9 @@ pipeline {
                         
                         echo "Rapport généré dans reports/pip-audit.html"
                         
-                        # Vérifier les vulnérabilités critiques
+                        # Vérifier les vulnérabilités critiques - CORRECTION: double échappement
                         if [ -f reports/pip-audit.html ]; then
-                            if grep -i "critical\|high" reports/pip-audit.html; then
+                            if grep -i "critical\\\\|high" reports/pip-audit.html; then
                                 echo "⚠️ ATTENTION: Des vulnérabilités critiques ont été détectées !"
                                 # Pour bloquer le build, décommentez la ligne suivante :
                                 # exit 1
