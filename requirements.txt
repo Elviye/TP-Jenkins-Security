@@ -1,5 +1,5 @@
 pytest
 pytest-cov
 requests
-flask
+flask = 0.0.0
 jinja2
